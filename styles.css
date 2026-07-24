@@ -1,0 +1,72 @@
+:root{
+  --panel:#191e31;--panel2:#252d48;--text:#f7f3ff;--muted:#aab2d1;--gold:#ffd166;
+  --green:#66e3a4;--red:#ff6b7a;--blue:#7fe7ff;--purple:#c58cff
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0b0e18;color:var(--text);
+font-family:system-ui,-apple-system,"Segoe UI",sans-serif;touch-action:none}
+body{display:flex;justify-content:center;align-items:center}
+#app{width:min(100vw,480px);height:100dvh;max-height:960px;position:relative;overflow:hidden;
+background:linear-gradient(180deg,#171c30,#0e111c);box-shadow:0 0 60px #0008}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#hud{position:absolute;inset:0;pointer-events:none}
+.top{position:absolute;left:8px;right:8px;top:max(7px,env(safe-area-inset-top));
+display:grid;grid-template-columns:1fr 1.38fr 1fr;gap:6px}
+.pill{background:#171c2eea;border:1px solid #53608066;border-radius:13px;padding:7px 8px;
+backdrop-filter:blur(7px);box-shadow:0 7px 20px #0005}
+.center{text-align:center}.label{font-size:10px;color:var(--muted)}.big{font-size:18px;font-weight:900;line-height:1.15}
+.bar{height:7px;background:#373d55;border-radius:99px;overflow:hidden;margin-top:4px}
+.fill{height:100%;transition:width .25s}.enemyFill{background:linear-gradient(90deg,#ff6b7a,#ffad72)}
+.playerFill{background:linear-gradient(90deg,#52d69b,#9af0bd)}
+.intent{color:#ff9baa;font-weight:800}
+.orbPanel{position:absolute;left:9px;top:max(83px,calc(env(safe-area-inset-top) + 79px));
+background:#171c2eea;border:1px solid #53608066;border-radius:13px;padding:8px 10px;
+display:flex;gap:8px;align-items:center;min-width:153px}
+.orbIcon{font-size:29px}.orbText b{display:block;font-size:14px}.orbText span{font-size:10px;color:var(--muted)}
+.sideBtns{position:absolute;right:9px;top:max(83px,calc(env(safe-area-inset-top) + 79px));display:grid;gap:6px}
+.sideBtns button{pointer-events:auto;background:#252c45;color:#fff;border:1px solid #536080;box-shadow:none;padding:8px 10px;font-size:11px}
+.buildStrip{position:absolute;right:9px;top:max(176px,calc(env(safe-area-inset-top) + 172px));max-width:190px;
+background:#171c2eea;border:1px solid #6b5b9366;border-radius:999px;padding:6px 10px;font-size:11px;
+color:#d9c8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sideBtns button.active{border-color:#ffd166;background:#4a3a1f;color:#ffe59a}
+.pegHint{position:absolute;left:50%;transform:translateX(-50%);top:205px;background:#392f1eee;border:1px solid #ffd16699;
+border-radius:999px;padding:6px 11px;font-size:11px;color:#ffe59a;display:none;white-space:nowrap}
+.pegHint.show{display:block}
+.resource{position:absolute;left:9px;top:max(176px,calc(env(safe-area-inset-top) + 172px));
+background:#171c2eea;border:1px solid #53608066;border-radius:999px;padding:6px 10px;font-size:12px;color:var(--gold)}
+.magazine{position:absolute;left:9px;top:max(142px,calc(env(safe-area-inset-top) + 138px));
+height:30px;max-width:235px;background:#171c2eea;border:1px solid #53608066;border-radius:999px;
+padding:4px 8px;display:flex;align-items:center;gap:5px}
+.magLabel{font-size:11px;color:#aab2d1;font-weight:800}.magRounds{display:flex;gap:2px;overflow:hidden}
+.magRounds i{font-style:normal;font-size:17px;line-height:20px;filter:drop-shadow(0 1px 2px #0008)}
+.magRounds i.next{outline:1px solid #ffd166;border-radius:50%;background:#ffd16622}
+.magCount{font-size:10px;color:#ffd166;font-weight:900;white-space:nowrap}
+.bottom{position:absolute;left:9px;right:9px;bottom:max(9px,env(safe-area-inset-bottom));
+display:grid;grid-template-columns:1fr auto;gap:7px;align-items:end}
+.tip{background:#171c2eeb;border:1px solid #53608066;border-radius:13px;padding:9px 10px;
+font-size:12px;color:#dbe0f5;line-height:1.35;min-height:51px}
+button{pointer-events:auto;border:0;border-radius:13px;padding:11px 14px;font-size:14px;font-weight:900;
+background:linear-gradient(#ffe592,#ffc84e);color:#3d2b00;box-shadow:0 5px 0 #ad7612}
+button:active{transform:translateY(2px);box-shadow:0 3px 0 #ad7612}
+#overlay{position:absolute;inset:0;background:#05070ddd;display:none;align-items:center;justify-content:center;
+padding:14px;z-index:5;pointer-events:auto}
+#overlay.show{display:flex}
+.card{width:100%;max-height:94%;overflow:auto;background:#1b2135;border:1px solid #46547d;border-radius:20px;
+padding:17px;box-shadow:0 25px 80px #0009}
+.card h2{margin:0 0 7px;text-align:center;font-size:27px}.card>p{text-align:center;color:#b6bfdc;line-height:1.45}
+.choices{display:grid;gap:9px;margin-top:12px}.choice{background:var(--panel2);color:#fff;border:1px solid #46547d;box-shadow:none;text-align:left;padding:12px}
+.choice b{display:block;color:var(--gold);font-size:16px}.choice small{display:block;color:#bdc5df;margin-top:3px;line-height:1.35}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.node{text-align:center;min-height:115px;background:#252d48;color:#fff;border:1px solid #46547d;box-shadow:none}
+.node .ico{display:block;font-size:31px;margin-bottom:5px}.node small{display:block;color:#bdc5df;margin-top:3px}
+.list{display:grid;gap:8px;margin-top:12px}.item{background:#252d48;border:1px solid #46547d;border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center}
+.item .icon{font-size:30px}.item b{display:block}.item small{color:#b8c0dc;line-height:1.3}.tag{font-size:10px;color:#ffd166}
+.levelBadge{display:inline-block;background:#4a3a1f;border:1px solid #ffd16677;color:#ffe59a;
+border-radius:999px;padding:2px 6px;font-size:10px;margin-left:5px}
+.xpbar{height:6px;background:#39415f;border-radius:99px;overflow:hidden;margin-top:5px}
+.xpfill{height:100%;background:linear-gradient(90deg,#7fe7ff,#c58cff)}
+.ready{color:#7ee787;font-weight:900}
+.close{width:100%;margin-top:12px}.danger{background:linear-gradient(#ff9aa6,#ff6478);color:#3e0b12;box-shadow:0 5px 0 #a92f40}
+.disabled{opacity:.45;filter:grayscale(1)}
+.shake{animation:shake .25s}@keyframes shake{25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
+@media(max-height:720px){.orbPanel,.sideBtns{top:74px}.magazine{top:130px}.resource{top:164px}.big{font-size:16px}}
