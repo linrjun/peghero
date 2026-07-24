@@ -1,31 +1,17 @@
 import { GAME_VERSION, STORAGE_KEY } from "./config.js";
 
-window.PEG_HERO_CONFIG = Object.freeze({
-  version: GAME_VERSION,
-  storageKey: STORAGE_KEY,
-});
+window.PEG_HERO_CONFIG = Object.freeze({ version: GAME_VERSION, storageKey: STORAGE_KEY });
 
-const partUrls = [
-  "./runtime/part-1.txt",
-  "./runtime/part-2.txt",
-  "./runtime/part-3.txt",
-  "./runtime/part-4.txt",
-  "./runtime/part-5.txt",
-  "./runtime/part-6.txt",
-];
-
-try {
-  const responses = await Promise.all(partUrls.map((url) => fetch(url)));
-  const failed = responses.find((response) => !response.ok);
-  if (failed) {
-    throw new Error(`Runtime chunk failed: ${failed.status} ${failed.url}`);
-  }
-  const runtime = (await Promise.all(responses.map((response) => response.text()))).join("");
-  Function(runtime)();
-} catch (error) {
-  console.error(error);
-  const app = document.getElementById("app");
-  if (app) {
-    app.innerHTML = `<div style="padding:24px;color:white;font-family:system-ui">游戏加载失败，请刷新页面。<br><small>${String(error)}</small></div>`;
-  }
+async function boot() {
+  const response = await fetch(new URL("./runtime.js.gz", import.meta.url));
+  if (!response.ok) throw new Error(`runtime load failed: ${response.status}`);
+  if (!("DecompressionStream" in window)) throw new Error("浏览器不支持 DecompressionStream");
+  const stream = response.body.pipeThrough(new DecompressionStream("gzip"));
+  const source = await new Response(stream).text();
+  Function(source)();
 }
+
+boot().catch((error) => {
+  console.error(error);
+  document.body.innerHTML = `<main style="padding:24px;color:white;background:#10131f;min-height:100vh;font-family:system-ui"><h1>游戏加载失败</h1><p>${error.message}</p></main>`;
+});
