@@ -1,0 +1,170 @@
+115,78+force*2);
+ b.vx+=horizontal*strength*sx+(Math.random()-.5)*24*sx;
+ b.vy+=Math.max(62,Math.abs(dy)*4)*sy;
+ S.nudgeUsed=true;S.stuckTime=0;S.lastNudgeAt=performance.now();
+ particles(b.x,b.y,'#9af0ff',16);
+ ui.tip.innerHTML='📳 摇晃脱困触发：只改变速度，不增加伤害。';
+ if(navigator.vibrate)navigator.vibrate(25);
+}
+ui.motionBtn.onclick=enableMotion;
+
+function particles(x,y,color,n=8){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,sp=45+Math.random()*105;
+ S.particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.5,max:.5,color})}}
+
+function showFloatingText(x,y,text,color='#ffffff'){
+ S.particles.push({x,y,vx:0,vy:-32,life:.75,max:.75,color,text,isText:true});
+}
+function dealInstantDamage(amount,x,y,label='即时'){
+ if(amount<=0)return;
+ S.ehp-=amount;S.instantDamage+=amount;
+ particles(x,y,'#ff9baa',10);
+ showFloatingText(x,y-12,`-${amount} ${label}`,'#ffb1bd');
+ updateUI();
+ if(S.ehp<=0&&S.ball&&S.ball.active){
+  S.ball.active=false;S.shotActive=false;
+  setTimeout(victory,260);
+ }
+}
+function applyInstantOrbEffect(p,critical){
+ if(orbType(S.current)==='needle')dealInstantDamage(1,p.x,p.y,'飞针');
+ if(orbType(S.current)==='leech'&&S.hitCount%3===0){
+  dealInstantDamage(2+(buildTier('life')===2?2:0),p.x,p.y,'吸血');
+  const before=S.php;S.php=Math.min(S.pmax,S.php+1+buildTier('life'));
+  if(S.php>before)showFloatingText(p.x+18,p.y,'+1 生命','#72e6a8');
+  updateUI();
+ }
+ if(orbType(S.current)==='bounty'&&p.critical&&S.instantCoins<(8+buildTier('wealth')*4)){
+  const cap=8+buildTier('wealth')*4;
+  const gain=Math.min(2,cap-S.instantCoins);
+  S.coins+=gain;S.instantCoins+=gain;
+  showFloatingText(p.x,p.y-13,`+${gain} 金币`,'#ffd166');
+  updateUI();
+ }
+ if(orbType(S.current)==='frost'&&S.hitCount%4===0&&S.frostReduction<3){
+  S.frostReduction++;
+  particles(p.x,p.y,'#a9ecff',14);
+  showFloatingText(p.x,p.y-13,'敌攻 -1','#a9ecff');
+  updateUI();
+ }
+}
+
+function orbOnHit(p){
+ const type=orbType(S.current);
+ if(type==='fire'&&S.hitCount%3===0){
+  const bonus=buildTier('fire')===2?6:buildTier('fire')===1?2:0;
+  S.shotDamage+=3+(S.current.level>=3?2:0)+(S.current.level>=5?2:0)+bonus;
+  particles(p.x,p.y,'#ff805f',12);
+ }
+ if(type==='lightning'){
+  const every=buildTier('combo')===2?3:buildTier('combo')===1?4:5;
+  if(S.hitCount%every===0){
+   S.shotDamage+=7+(S.current.level>=3?3:0)+(S.current.level>=5?4:0);
+   particles(p.x,p.y,'#8eeaff',18);
+  }
+ }
+ if(type==='bomb'&&S.hitCount===7){
+  const bonus=buildTier('bomb')===2?13:buildTier('bomb')===1?5:0;
+  S.shotDamage+=16+(S.current.level>=3?6:0)+(S.current.level>=5?8:0)+bonus;
+  particles(p.x,p.y,'#c59aff',28);shake();
+ }
+ if(type==='heal'&&S.hitCount%4===0){
+  const heal=2+(S.current.level>=3?1:0)+(S.current.level>=5?1:0)+buildTier('life');
+  S.php=Math.min(S.pmax,S.php+heal);particles(p.x,p.y,'#72e6a8',10);
+ }
+}
+function collide(b,p){
+ const dx=b.x-p.x,dy=b.y-p.y,d=Math.hypot(dx,dy),m=b.r+p.r;if(d>=m||d===0)return;
+ const nx=dx/d,ny=dy/d;b.x=p.x+nx*m;b.y=p.y+ny*m;const dot=b.vx*nx+b.vy*ny;
+ if(dot<0){b.vx-=1.82*dot*nx;b.vy-=1.82*dot*ny;b.vx*=.995;b.vy*=.995}
+ if(!b.already.has(p.id)){
+  b.already.add(p.id);p.hit=true;p.pulse=1;S.hitCount++;
+  const critical=p.critical||Math.random()<S.crit+(hasRelic('lucky')?.12:0);
+  S.shotDamage+=(S.pegValue+orbLevelHitBonus(S.current))*(critical?2:1);applySpecialPegEffect(p,b);orbOnHit(p);applyInstantOrbEffect(p,critical);particles(p.x,p.y,critical?'#ffd166':orbDef(S.current).color,critical?14:7);
+  if(navigator.vibrate)navigator.vibrate(critical?16:6);updateUI();
+ }
+}
+function update(dt){
+ S.particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;if(!p.isText)p.vy+=70*dt;p.life-=dt});
+ S.particles=S.particles.filter(p=>p.life>0);S.pegs.forEach(p=>p.pulse=Math.max(0,p.pulse-dt*4));
+ const b=S.ball;if(!b||!b.active)return;
+ const speed=Math.hypot(b.vx,b.vy);
+ const slotTop=H-Y(142);
+ if(speed<46&&b.y<slotTop-12){
+  S.stuckTime+=dt;
+  if(S.motionEnabled&&!S.nudgeUsed&&S.stuckTime>.9&&S.stuckTime-dt<=.9){
+   ui.tip.textContent='弹珠似乎卡住了，现在摇晃手机可脱困一次。';
+  }
+ }else S.stuckTime=Math.max(0,S.stuckTime-dt*2.5);
+ b.trail.push({x:b.x,y:b.y,life:.35});if(b.trail.length>24)b.trail.shift();
+ const steps=3,sub=dt/steps;
+ for(let i=0;i<steps;i++){
+  if(hasRelic('magnet')){
+   let nearest=null,nd=95;
+   for(const p of S.pegs){if(b.already.has(p.id))continue;const d=Math.hypot(p.x-b.x,p.y-b.y);if(d<nd){nd=d;nearest=p}}
+   if(nearest){b.vx+=(nearest.x-b.x)*.45*sub;b.vy+=(nearest.y-b.y)*.45*sub}
+  }
+  b.vy+=S.gravity*sub;b.x+=b.vx*sub;b.y+=b.vy*sub;
+  // 左右跨屏，不再反弹
+  if(b.x+b.r<0){
+    b.x=W+b.r;
+  }else if(b.x-b.r>W){
+    b.x=-b.r;
+  }
+  S.pegs.forEach(p=>collide(b,p));
+ }
+ const top=H-Y(142);if(b.y>top&&b.vy>0){const sw=W/5,idx=Math.max(0,Math.min(4,Math.floor(b.x/sw)));finishShot(S.slots[idx]+S.multBonus)}
+}
+function finishShot(mult){
+ if(!S.ball.active)return;S.ball.active=false;
+ if(orbType(S.current)==='glass')mult+=2;
+ let total=Math.max(1,Math.floor(S.shotDamage*mult));
+ if(S.firstShot&&hasRelic('firstStrike'))total=Math.floor(total*1.5);
+ let resolved=total;
+ if(S.enemyArmor>0 && orbType(S.current)!=='bomb') resolved=Math.max(1,total-S.enemyArmor);
+ S.firstShot=false;S.ehp-=resolved;updateUI();
+ const instantNote=S.instantDamage?`，飞行中已即时造成 <b style="color:#ff9baa">${S.instantDamage}</b> 伤害`:'';
+ ui.tip.innerHTML=`落槽结算 <b style="color:#ffd166">${total}</b> 伤害（×${mult}）${instantNote}。`;
+ particles(S.ball.x,Math.min(S.ball.y,H-80),'#ffd166',22);
+ if(orbType(S.current)==='glass'&&Math.random()<.35&&S.deck.length>1){
+  const idx=S.deck.findIndex(o=>o.uid===S.current.uid);if(idx>=0)S.deck.splice(idx,1);
+  ui.tip.innerHTML+=` <span style="color:#8eeaff">玻璃弹珠碎裂了，下次装填时不再出现。</span>`;
+  updateMagazineUI();
+ }
+ setTimeout(()=>{if(S.ehp<=0){victory();return}enemyTurn()},620);
+}
+function shake(){app.classList.add('shake');setTimeout(()=>app.classList.remove('shake'),250)}
+function enemyTurn(){
+ let dmg=Math.max(0,S.enemyDamage-(hasRelic('pillow')?2:0)-S.frostReduction);
+ if(S.enemyTrait==='狂怒'&&S.ehp<S.emax/2)dmg+=4;
+ const hits=(S.enemyKind==='bat'?2:1);
+ S.php-=dmg*hits;if(hasRelic('cactus'))S.ehp-=3*hits;shake();if(navigator.vibrate)navigator.vibrate([25,20,25]);updateUI();
+ if(S.ehp<=0){setTimeout(victory,300);return}
+ if(S.php<=0){gameOver();return}
+ const nextId=S.magazine[0];
+ ui.tip.innerHTML=`${S.enemy} 反击，造成 <b style="color:#ff8c9b">${dmg}</b> 伤害。${nextId?` 下一颗：${orbDef(nextId).icon}`:' 弹夹已空，即将重新装填。'}`;
+ S.turnInBattle++;markCriticalPegs();setTimeout(resetBall,450);
+}
+function gameOver(){
+ S.gameOver=true;localStorage.removeItem('peghero_v03');ui.overlayTitle.textContent='冒险失败';
+ ui.overlayText.textContent=`你抵达了第 ${S.stage} 层，积累 ${S.coins} 金币。`;
+ ui.overlayBody.innerHTML='<button class="close" onclick="location.reload()">重新开始</button>';ui.overlay.classList.add('show');
+}
+function victory(){
+ S.gameOver=true;let reward=10+S.stage*2+(hasRelic('coinCharm')?5:0);
+ if(S.enemyKind==='mimic')reward+=25;
+ S.coins+=reward;S.php=Math.min(S.pmax,S.php+6);
+ let extra='';if(S.battleType==='elite'){gainRelic();extra=' 精英还掉落了一件随机遗物。'}
+ ui.overlayTitle.textContent='战斗胜利';ui.overlayText.textContent=`获得 ${reward} 金币并恢复 6 点生命。${extra}`;
+ if(Math.random()<.38){
+  const pegId=rand(Object.keys(PEG_TYPES));
+  offerPegReward(pegId,showRoute);
+ }else showRoute();
+}
+function showRoute(){
+ const nodes=S.stage%5===4?[
+  {icon:'👑',name:'Boss',desc:'高风险首领战',type:'boss'},
+  {icon:'🔥',name:'精英',desc:'更强敌人，必得遗物',type:'elite'}
+ ]:[
+  {icon:'⚔️',name:'战斗',desc:'稳定获得金币',type:'battle'},
+  {icon:'🛒',name:'商店',desc:'购买弹珠或恢复生命',type:'shop'},
+  {icon:'🔨',name:'铁匠'
